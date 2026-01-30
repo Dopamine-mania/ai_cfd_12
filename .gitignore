@@ -16,6 +16,10 @@ checkpoints/
 *.pth
 *.pt
 
+# 交付目录：允许提交最终权重（其余 .pth 仍保持忽略）
+!Final_Delivery/weights/*.pth
+!Final_Delivery/weights/*.pt
+
 # 训练日志
 logs/
 *.log

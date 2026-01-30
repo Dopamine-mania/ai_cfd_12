@@ -1,17 +1,21 @@
 # CFD AI 训练项目
 
-基于 ResNet 的 CFD (计算流体动力学) 速度场预测深度学习项目。
+舰船尾流 3 通道速度场切片（U/V/W）时序预测项目。
+
+当前交付主路线：`time_conditioned/` 下的 **Time-Conditioned ResNet（One-shot）**，用 `x_t = G(x0, t)` 避免 4500 步自回归误差累积。
+备选/实验：FNO（Fourier Neural Operator + padding 处理非周期边界）。
+历史对照：老版 ResNet 自回归路线已归档在 `resnet_legacy/`。
 
 ## 项目概述
 
-本项目使用深度学习技术预测流体动力学中的速度场演化，采用 ResNet 架构学习时间步之间的物理变化规律。
+本项目使用深度学习技术预测流体动力学中的速度场演化，目标是长时滚动预测（9s / 4500 steps）。
 
 ## 环境信息
 
 - **GPU**: NVIDIA A40 (46GB VRAM)
 - **Python**: 3.11.7
 - **PyTorch**: 2.3.1 (CUDA 12.1)
-- **数据格式**: NumPy arrays (6000, 200, 128, 3) - [时间步, 宽, 高, 通道(U,V,P)]
+- **数据格式**: NumPy arrays (6000, 200, 128, 3) - [时间步, Y, Z, 通道(U,V,W)]
 
 ## 项目结构
 
@@ -20,12 +24,18 @@ ai_cfd/
 ├── activate_cfd.sh       # 环境激活脚本
 ├── train.py              # 主训练脚本（ResNet架构）
 ├── predict.py            # 预测脚本
+├── time_conditioned/     # One-shot/time-conditioned ResNet 训练/推理（推荐）
+├── fno/                  # FNO 训练/推理脚本（当前主路线）
+├── resnet_legacy/        # ResNet 归档/对照（tag）
 ├── run_train.ipynb       # Jupyter Notebook 启动脚本
 ├── check_data.py         # 数据验证脚本
 ├── .gitignore            # Git 忽略文件配置
 ├── cfd_env/              # 虚拟环境（不上传）
 ├── processed_data/       # 训练数据（不上传）
+│   ├── 26ms/             # 26m/s 工况（基座）
+│   └── 18ms/             # 18m/s 工况（迁移学习）
 ├── checkpoints/          # 模型检查点（不上传）
+├── checkpoints_fno/      # FNO 模型检查点（不上传）
 ├── logs/                 # 训练日志（不上传）
 └── tensorboard/          # TensorBoard 日志（不上传）
 ```
@@ -47,6 +57,37 @@ pip install numpy scipy pandas matplotlib seaborn tensorboard tqdm psutil ipyker
 ```
 
 ### 2. 启动训练
+
+#### Time-Conditioned ResNet（推荐/交付路线）
+
+26m/s one-shot 训练：
+```bash
+source activate_cfd.sh
+python -u time_conditioned/train_time_resnet.py | tee logs/time_resnet_26ms_$(date +%Y%m%d_%H%M%S).log
+```
+
+18m/s 迁移学习（从 26m/s 权重微调 + 产出 9 秒交付物）：
+```bash
+source activate_cfd.sh
+bash time_conditioned/run_18ms_transfer.sh
+```
+
+#### FNO（推荐/当前主路线）
+
+训练（与项目组确认一致：`MODES=12, WIDTH=32, PADDING=20, LR=1e-3, EPOCHS=100`）：
+```bash
+source activate_cfd.sh
+MODES=12 WIDTH=32 PADDING=20 EPOCHS=100 LR=1e-3 BATCH_SIZE=16 \
+python -u fno/train_fno.py | tee logs/fno_train_$(date +%Y%m%d_%H%M%S).log
+```
+
+推理并生成 9 秒 GIF（输出默认在 `results_fno/`）：
+```bash
+MODEL_PATH=./checkpoints_fno/fno_final.pth \
+python -u fno/predict_fno.py
+```
+
+#### ResNet（对照/已归档）
 
 **方式 1: 命令行（简单）**
 ```bash
@@ -136,7 +177,7 @@ loss = MSE(diff_pred * 100.0, diff_gt * 100.0)  # 放大100倍强调细节
 - **通道**:
   - Channel 0: U 速度分量
   - Channel 1: V 速度分量
-  - Channel 2: 压力场 P
+  - Channel 2: W 速度分量
 
 ## 关键特性
 

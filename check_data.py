@@ -2,7 +2,7 @@ import numpy as np
 import os
 
 # 检查 340.npy 是否存在
-file_path = './processed_data/340.npy' 
+file_path = './processed_data/26ms/340.npy' if os.path.exists('./processed_data/26ms/340.npy') else './processed_data/340.npy'
 
 if not os.path.exists(file_path):
     print(f"❌ 找不到文件: {file_path}")
