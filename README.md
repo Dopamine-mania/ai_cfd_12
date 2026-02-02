@@ -206,9 +206,6 @@ DataLoader(..., num_workers=8)  # 从 4 改为 8
 - 降低学习率: `LEARNING_RATE = 1e-5`
 - 添加学习率调度器
 
-## 贡献者
-
-- Xinchen Wan (eaglew9603@gmail.com)
 
 ## 许可证
 
